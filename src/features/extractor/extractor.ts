@@ -1,29 +1,35 @@
 import type { RawDocument } from "../../entities/document/index.js";
 
-const DELIMITER = /^---\s*$/;
+const OPENING = /^---[ \t]*\r?\n/;
+const CLOSING_INLINE = /^---[ \t]*(?:\r?\n|$)/;
+const CLOSING_AFTER = /\r?\n---[ \t]*(?:\r?\n|$)/;
 
 export function extract(source: string): RawDocument | null {
-  const normalized = source.replace(/\r\n/g, "\n");
-  const lines = normalized.split("\n");
-
-  if (!DELIMITER.test(lines[0])) {
+  const openMatch = OPENING.exec(source);
+  if (!openMatch) {
     return null;
   }
 
-  let closingIndex = -1;
-  for (let i = 1; i < lines.length; i++) {
-    if (DELIMITER.test(lines[i])) {
-      closingIndex = i;
-      break;
+  const afterOpen = openMatch[0].length;
+  const rest = source.slice(afterOpen);
+
+  let frontmatter: string;
+  let contentStart: number;
+
+  const inlineMatch = CLOSING_INLINE.exec(rest);
+  if (inlineMatch && inlineMatch.index === 0) {
+    frontmatter = "";
+    contentStart = afterOpen + inlineMatch[0].length;
+  } else {
+    const closeMatch = CLOSING_AFTER.exec(rest);
+    if (!closeMatch) {
+      return null;
     }
+    frontmatter = rest.slice(0, closeMatch.index).replace(/\r\n/g, "\n");
+    contentStart = afterOpen + closeMatch.index + closeMatch[0].length;
   }
 
-  if (closingIndex === -1) {
-    return null;
-  }
-
-  const frontmatter = lines.slice(1, closingIndex).join("\n");
-  const content = lines.slice(closingIndex + 1).join("\n");
+  const content = source.slice(contentStart).replace(/\r\n/g, "\n");
 
   return { frontmatter, content };
 }

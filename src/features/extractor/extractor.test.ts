@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { extract } from "./extractor.js";
-import { ExtractError } from "../../shared/index.js";
 
 describe("extract", () => {
   describe("valid frontmatter", () => {
